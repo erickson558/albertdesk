@@ -4,7 +4,7 @@ Version: 1.2.0
 A Professional RustDesk-like application for remote desktop sharing and control.
 """
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 __author__ = "Albert"
 __license__ = "MIT"
 

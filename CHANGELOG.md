@@ -5,6 +5,16 @@ All notable changes to AlbertDesk will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-03-02
+
+### Fixed
+- **Detección mejorada de Cloudflare instalado** 🔧 - Ya no pide reinstalar después de instalar
+- Verifica directamente en las ubicaciones de instalación en lugar de solo usar el comando
+- Comprueba `Program Files\cloudflared\cloudflared.exe`
+- Comprueba `AppData\Local\Programs\cloudflared\cloudflared.exe`
+- Mantiene verificación por comando como fallback para PATH actualizado
+- Soluciona problema donde el PATH no se actualizaba en el proceso actual sin reiniciar
+
 ## [1.2.0] - 2026-03-02
 
 ### Added
