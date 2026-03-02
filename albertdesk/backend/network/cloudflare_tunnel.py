@@ -43,6 +43,7 @@ class CloudflareTunnelManager:
     
     def is_cloudflare_installed(self) -> bool:
         """Check if Cloudflare tunnel CLI is installed."""
+        # First try to execute cloudflared command
         try:
             result = subprocess.run(
                 ["cloudflared", "--version"],
@@ -50,10 +51,26 @@ class CloudflareTunnelManager:
                 text=True,
                 timeout=5
             )
-            return result.returncode == 0
-        except Exception as e:
-            logger.debug(f"Cloudflared not found: {e}")
-            return False
+            if result.returncode == 0:
+                return True
+        except Exception:
+            pass
+        
+        # If that fails, check in common installation paths
+        if sys.platform.startswith('win'):
+            # Check Program Files
+            program_files = os.environ.get('ProgramFiles', 'C:\\Program Files')
+            exe_path_1 = os.path.join(program_files, 'cloudflared', 'cloudflared.exe')
+            if os.path.exists(exe_path_1):
+                return True
+            
+            # Check AppData Local Programs
+            appdata = os.environ.get('LOCALAPPDATA', os.path.expanduser('~\\AppData\\Local'))
+            exe_path_2 = os.path.join(appdata, 'Programs', 'cloudflared', 'cloudflared.exe')
+            if os.path.exists(exe_path_2):
+                return True
+        
+        return False
     
     def get_installation_instructions(self) -> str:
         """Get instructions for installing Cloudflare Tunnel."""
