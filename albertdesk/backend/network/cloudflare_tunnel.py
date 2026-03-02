@@ -45,11 +45,19 @@ class CloudflareTunnelManager:
         """Check if Cloudflare tunnel CLI is installed."""
         # First try to execute cloudflared command
         try:
+            run_kwargs = {
+                "capture_output": True,
+                "text": True,
+                "timeout": 5
+            }
+            
+            # On Windows, hide the console window
+            if sys.platform.startswith('win'):
+                run_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+            
             result = subprocess.run(
                 ["cloudflared", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                **run_kwargs
             )
             if result.returncode == 0:
                 return True
@@ -292,11 +300,20 @@ Una vez instalado, AlbertDesk lo detectará automáticamente.
             
             logger.info(f"Starting tunnel for localhost:{local_port}")
             
+            # Prepare Popen kwargs for silent execution
+            popen_kwargs = {
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "universal_newlines": True
+            }
+            
+            # On Windows, hide the console window
+            if sys.platform.startswith('win'):
+                popen_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+            
             self.tunnel_process = subprocess.Popen(
                 ["cloudflared", "tunnel", "--url", f"localhost:{local_port}"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True
+                **popen_kwargs
             )
             
             self.running = True
