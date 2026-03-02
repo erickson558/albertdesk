@@ -22,7 +22,7 @@ from PyQt5.QtCore import QTimer
 from albertdesk.backend.core.logger import setup_logging, get_logger
 from albertdesk.frontend.ui.main_window import AlbertDeskWindow
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 logger = get_logger(__name__)
 

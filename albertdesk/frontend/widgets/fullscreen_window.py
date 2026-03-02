@@ -2,9 +2,9 @@
 Fullscreen window for remote desktop with floating controls overlay.
 """
 
-from PyQt5.QtCore import Qt, QTimer, QCursor, QEvent
+from PyQt5.QtCore import Qt, QTimer, QEvent
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QCursor
 
 from ...backend.core.logger import get_logger
 

@@ -93,7 +93,8 @@ class Config:
                 else:
                     defaults[key] = value
         
-        self.save()
+        # Save defaults to file
+        save_json(self.config_file, defaults)
         return defaults
     
     def __getitem__(self, key: str) -> Any:

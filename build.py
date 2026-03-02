@@ -15,9 +15,9 @@ from pathlib import Path
 # Configuration
 PROJECT_NAME = "AlbertDesk"
 ICON_FILE = "Albertdesk.ico"
-OUTPUT_DIR = "dist"
+OUTPUT_DIR = "."  # Generate exe in current folder
 BUILD_DIR = "build"
-SPEC_FILE = f"{PROJECT_NAME.lower()}.spec"
+SPEC_FILE = f"{PROJECT_NAME}.spec"
 
 def check_icon():
     """Check if icon file exists."""
@@ -31,14 +31,21 @@ def check_icon():
 def clean_build_artifacts():
     """Clean previous build artifacts."""
     print("🧹 Cleaning build artifacts...")
-    for directory in [BUILD_DIR, OUTPUT_DIR, "__pycache__"]:
+    for directory in [BUILD_DIR, "__pycache__"]:
         if os.path.exists(directory):
-            shutil.rmtree(directory)
-            print(f"   Removed: {directory}")
+            try:
+                shutil.rmtree(directory)
+                print(f"   Removed: {directory}")
+            except PermissionError as e:
+                print(f"   ⚠️  Could not remove {directory}: {e}")
+                print(f"   Continuing anyway...")
     
     if os.path.exists(SPEC_FILE):
-        os.remove(SPEC_FILE)
-        print(f"   Removed: {SPEC_FILE}")
+        try:
+            os.remove(SPEC_FILE)
+            print(f"   Removed: {SPEC_FILE}")
+        except Exception as e:
+            print(f"   ⚠️  Could not remove {SPEC_FILE}: {e}")
 
 def build_executable():
     """Build executable using PyInstaller."""
@@ -112,8 +119,8 @@ def main():
     # Print summary
     print("=" * 60)
     print(f"✅ Build completed successfully!")
-    print(f"📍 Executable: {OUTPUT_DIR}/{PROJECT_NAME}.exe" if sys.platform.startswith('win') 
-          else f"📍 Executable: {OUTPUT_DIR}/{PROJECT_NAME}")
+    exe_name = f"{PROJECT_NAME}.exe" if sys.platform.startswith('win') else PROJECT_NAME
+    print(f"📍 Executable: {exe_name} (in current folder)")
     print("=" * 60)
     
     return True

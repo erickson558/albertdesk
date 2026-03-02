@@ -12,11 +12,10 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
     QPushButton, QLineEdit, QLabel, QStatusBar, QGroupBox, QGridLayout,
     QMessageBox, QInputDialog, QFileDialog, QListWidget, QListWidgetItem,
-    QCheckBox, QScrollArea
+    QCheckBox, QScrollArea, QPlainTextEdit
 )
 from PyQt5.QtGui import QFont, QDesktopServices
-from PyQt5.QtCore import Qt, QTimer, QUrl, pyqtSlot, threading as qtthreading
-from PyQt5.QtCore import QMetaObject, Q_ARG
+from PyQt5.QtCore import Qt, QTimer, QUrl, pyqtSlot, QMetaObject, Q_ARG
 
 from ...backend.core.config import Config, load_json, save_json
 from ...backend.core.logger import get_logger
@@ -55,7 +54,8 @@ class AlbertDeskWindow(QMainWindow):
         
         # Cloudflare Tunnel manager
         self.tunnel_manager = CloudflareTunnelManager(
-            on_status_change=self._on_tunnel_status_change
+            on_status_change=self._on_tunnel_status_change,
+            on_output=self._on_tunnel_output
         )
         
         # Fullscreen window
@@ -267,7 +267,34 @@ class AlbertDeskWindow(QMainWindow):
         
         group.setLayout(grid)
         layout.addWidget(group)
-        layout.addStretch()
+        
+        # Terminal output
+        terminal_group = QGroupBox("💻 Terminal / Instalación")
+        terminal_layout = QVBoxLayout()
+        
+        self.tunnel_terminal = QPlainTextEdit()
+        self.tunnel_terminal.setReadOnly(True)
+        self.tunnel_terminal.setMaximumBlockCount(1000)  # Limit to 1000 lines
+        self.tunnel_terminal.setFont(QFont("Consolas", 9))
+        self.tunnel_terminal.setStyleSheet("""
+            QPlainTextEdit {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border: 1px solid #3e3e3e;
+            }
+        """)
+        self.tunnel_terminal.setPlaceholderText(
+            "Terminal de instalación y salida de Cloudflare Tunnel...\n\n"
+            "Haz clic en 'Instalar Cloudflare Tunnel' para ver las instrucciones de instalación."
+        )
+        
+        clear_terminal_btn = QPushButton("🗑️ Limpiar Terminal")
+        clear_terminal_btn.clicked.connect(lambda: self.tunnel_terminal.clear())
+        
+        terminal_layout.addWidget(self.tunnel_terminal)
+        terminal_layout.addWidget(clear_terminal_btn)
+        terminal_group.setLayout(terminal_layout)
+        layout.addWidget(terminal_group, 1)  # Give it stretch priority
         
         tab.setLayout(layout)
         return tab
@@ -610,7 +637,15 @@ class AlbertDeskWindow(QMainWindow):
     def _show_tunnel_install_instructions(self) -> None:
         """Show installation instructions for Cloudflare Tunnel."""
         instructions = self.tunnel_manager.get_installation_instructions()
-        QMessageBox.information(self, "Instalar Cloudflare Tunnel", instructions)
+        # Show in terminal instead of dialog
+        self.tunnel_terminal.clear()
+        self.tunnel_terminal.appendPlainText("="*60)
+        self.tunnel_terminal.appendPlainText("  INSTALACIÓN DE CLOUDFLARE TUNNEL")
+        self.tunnel_terminal.appendPlainText("="*60)
+        self.tunnel_terminal.appendPlainText(instructions)
+        self.tunnel_terminal.appendPlainText("\n" + "="*60)
+        self.tunnel_terminal.appendPlainText("Una vez instalado, haz clic en 'Iniciar Tunnel'")
+        self.tunnel_terminal.appendPlainText("="*60)
     
     def _start_tunnel(self) -> None:
         """Start Cloudflare Tunnel."""
@@ -643,6 +678,16 @@ class AlbertDeskWindow(QMainWindow):
         self.tunnel_status_lbl.setText(status)
         if "https://" in status:
             self.tunnel_url_lbl.setText(f"URL: {status.split('URL Tunnel: ')[-1] if 'URL Tunnel: ' in status else status}")
+    
+    def _on_tunnel_output(self, line: str) -> None:
+        """Handle tunnel output to terminal."""
+        # Use QMetaObject.invokeMethod to ensure thread-safe GUI update
+        QMetaObject.invokeMethod(
+            self.tunnel_terminal,
+            "appendPlainText",
+            Qt.QueuedConnection,
+            Q_ARG(str, line)
+        )
     
     def _copy_tunnel_url(self) -> None:
         """Copy tunnel URL to clipboard."""

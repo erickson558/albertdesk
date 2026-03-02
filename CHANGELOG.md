@@ -5,6 +5,28 @@ All notable changes to AlbertDesk will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-03-02
+
+### Added
+- **Terminal CLI Embebida** - Ventana de terminal integrada en el tab de Cloudflare Tunnel
+- Instalación de Cloudflare desde la app sin salir de la interfaz
+- Visualización en tiempo real de la salida de cloudflared en el terminal
+- Botón para limpiar el terminal embebido
+- Instrucciones de instalación mostradas directamente en el terminal
+
+### Changed
+- El ejecutable ahora se genera en la carpeta raíz en lugar de dist/
+- Las instrucciones de instalación de Cloudflare se muestran en terminal en lugar de diálogo modal
+- Mejorada la experiencia de usuario para instalación de Cloudflare Tunnel
+
+### Technical
+- Agregado QPlainTextEdit para terminal con tema oscuro
+- Modificado CloudflareTunnelManager para soportar callback on_output
+- Thread-safe updates del terminal usando QMetaObject.invokeMethod
+- Terminal limitado a 1000 líneas para optimizar memoria
+
+---
+
 ## [1.0.0] - 2026-03-02
 
 ### Added

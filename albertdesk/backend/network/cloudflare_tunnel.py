@@ -20,14 +20,17 @@ TUNNEL_CONFIG_FILE = os.path.join(TUNNEL_CONFIG_DIR, "tunnel_config.json")
 class CloudflareTunnelManager:
     """Manages Cloudflare Tunnel for internet connectivity."""
     
-    def __init__(self, on_status_change: Optional[Callable[[str], None]] = None):
+    def __init__(self, on_status_change: Optional[Callable[[str], None]] = None,
+                 on_output: Optional[Callable[[str], None]] = None):
         """
         Initialize Cloudflare Tunnel Manager.
         
         Args:
             on_status_change: Callback function for status updates
+            on_output: Callback function for terminal output
         """
         self.on_status_change = on_status_change
+        self.on_output = on_output
         self.tunnel_process: Optional[subprocess.Popen] = None
         self.running = False
         self.tunnel_url: Optional[str] = None
@@ -144,6 +147,10 @@ class CloudflareTunnelManager:
                 
                 logger.debug(f"Tunnel output: {line.strip()}")
                 
+                # Send output to terminal
+                if self.on_output:
+                    self.on_output(line.rstrip())
+                
                 # Look for URL in output
                 if "Accessible at" in line or "https://" in line:
                     # Extract URL (format: "Accessible at https://xxxxx.trycloudflare.com")
@@ -158,9 +165,6 @@ class CloudflareTunnelManager:
                         
                         if self.on_status_change:
                             self.on_status_change(f"✅ URL Tunnel: {self.tunnel_url}")
-                else:
-                    if self.on_status_change:
-                        self.on_status_change(line.strip())
         
         except Exception as e:
             logger.error(f"Error capturing tunnel URL: {e}")
