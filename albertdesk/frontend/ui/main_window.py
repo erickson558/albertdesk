@@ -635,17 +635,89 @@ class AlbertDeskWindow(QMainWindow):
         self.status_bar.showMessage("🔄 Información actualizada", 3000)
     
     def _show_tunnel_install_instructions(self) -> None:
-        """Show installation instructions for Cloudflare Tunnel."""
-        instructions = self.tunnel_manager.get_installation_instructions()
-        # Show in terminal instead of dialog
+        """Install Cloudflare Tunnel automatically."""
+        # Check if already installed
+        if self.tunnel_manager.is_cloudflare_installed():
+            QMessageBox.information(
+                self,
+                "Ya instalado",
+                "✅ Cloudflared ya está instalado en tu sistema.\n\n"
+                "Puedes usar el botón 'Iniciar Tunnel' directamente."
+            )
+            return
+        
+        # Show confirmation dialog on Windows (will auto-install)
+        if sys.platform.startswith('win'):
+            reply = QMessageBox.question(
+                self,
+                "Instalar Cloudflare Tunnel",
+                "¿Deseas instalar Cloudflare Tunnel automáticamente?\n\n"
+                "La app descargará e instalará cloudflared desde GitHub.\n"
+                "El proceso tomará unos minutos.",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            
+            if reply == QMessageBox.No:
+                # Show manual instructions
+                instructions = self.tunnel_manager.get_installation_instructions()
+                self.tunnel_terminal.clear()
+                self.tunnel_terminal.appendPlainText("="*60)
+                self.tunnel_terminal.appendPlainText("  INSTALACIÓN MANUAL DE CLOUDFLARE TUNNEL")
+                self.tunnel_terminal.appendPlainText("="*60)
+                self.tunnel_terminal.appendPlainText(instructions)
+                self.tunnel_terminal.appendPlainText("\n" + "="*60)
+                return
+        
+        # Clear terminal and show starting message
         self.tunnel_terminal.clear()
-        self.tunnel_terminal.appendPlainText("="*60)
-        self.tunnel_terminal.appendPlainText("  INSTALACIÓN DE CLOUDFLARE TUNNEL")
-        self.tunnel_terminal.appendPlainText("="*60)
-        self.tunnel_terminal.appendPlainText(instructions)
-        self.tunnel_terminal.appendPlainText("\n" + "="*60)
-        self.tunnel_terminal.appendPlainText("Una vez instalado, haz clic en 'Iniciar Tunnel'")
-        self.tunnel_terminal.appendPlainText("="*60)
+        self.tunnel_terminal.appendPlainText("🚀 Iniciando instalación de Cloudflare Tunnel...")
+        self.tunnel_terminal.appendPlainText("")
+        
+        # Disable button during installation
+        self.install_tunnel_btn.setEnabled(False)
+        self.install_tunnel_btn.setText("⏳ Instalando...")
+        
+        # Run installation in thread to not block UI
+        def install_thread():
+            success = self.tunnel_manager.install_cloudflared()
+            
+            # Re-enable button on main thread
+            QMetaObject.invokeMethod(
+                self.install_tunnel_btn,
+                "setEnabled",
+                Qt.QueuedConnection,
+                Q_ARG(bool, True)
+            )
+            QMetaObject.invokeMethod(
+                self.install_tunnel_btn,
+                "setText",
+                Qt.QueuedConnection,
+                Q_ARG(str, "📥 Instalar Cloudflare Tunnel")
+            )
+            
+            if success:
+                # Update status
+                if self.tunnel_manager.is_cloudflare_installed():
+                    QMetaObject.invokeMethod(
+                        self,
+                        "_show_install_success",
+                        Qt.QueuedConnection
+                    )
+        
+        threading.Thread(target=install_thread, daemon=True).start()
+    
+    def _show_install_success(self) -> None:
+        """Show installation success message."""
+        QMessageBox.information(
+            self,
+            "Instalación Completada",
+            "✅ ¡Cloudflared instalado exitosamente!\n\n"
+            "ℹ️ IMPORTANTE:\n"
+            "Cierra y vuelve a abrir AlbertDesk para que los cambios\n"
+            "en el PATH del sistema surtan efecto.\n\n"
+            "Después podrás usar 'Iniciar Tunnel' sin problemas."
+        )
     
     def _start_tunnel(self) -> None:
         """Start Cloudflare Tunnel."""

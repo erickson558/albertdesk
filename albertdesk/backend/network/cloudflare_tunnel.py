@@ -1,4 +1,4 @@
-"""
+""" 
 Cloudflare Tunnel integration for internet connectivity.
 Provides optional relay connection without needing a personal server.
 """
@@ -9,6 +9,8 @@ import os
 import subprocess
 import sys
 import threading
+import urllib.request
+import shutil
 from typing import Optional, Callable
 
 logger = logging.getLogger(__name__)
@@ -57,37 +59,199 @@ class CloudflareTunnelManager:
         """Get instructions for installing Cloudflare Tunnel."""
         if sys.platform.startswith('win'):
             return """
-📥 Instala Cloudflare Tunnel en Windows:
+📥 Instalación de Cloudflare Tunnel en Windows:
 
-1. Descarga desde: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/
-2. O usa PowerShell:
-   scoop install cloudflare-warp
-   
-3. O descarga directo:
-   https://github.com/cloudflare/cloudflared/releases (buscas cloudflared-windows-amd64.exe)
+Método 1 (Automático - Recomendado):
+  Haz clic en el botón "Instalar" y la app descargará e instalará cloudflared automáticamente.
 
-4. Una vez instalado, AlbertDesk lo detectará automáticamente
+Método 2 (Manual):
+  1. Descarga desde: https://github.com/cloudflare/cloudflared/releases
+  2. Busca: cloudflared-windows-amd64.exe
+  3. Renómbralo a cloudflared.exe
+  4. Muévelo a una carpeta en tu PATH
+
+Método 3 (Con Scoop):
+  scoop install cloudflared
 """
         elif sys.platform.startswith('darwin'):
             return """
-📥 Instala Cloudflare Tunnel en macOS:
+📥 Instalación de Cloudflare Tunnel en macOS:
 
-1. Con Homebrew:
-   brew install cloudflare/warp/cloudflared
+1. Con Homebrew (Recomendado):
+   brew install cloudflared
 
-2. Una vez instalado, AlbertDesk lo detectará automáticamente
+2. Manual:
+   Descarga desde: https://github.com/cloudflare/cloudflared/releases
+   Busca: cloudflared-darwin-amd64.tgz
+
+Una vez instalado, AlbertDesk lo detectará automáticamente.
 """
         else:  # Linux
             return """
-📥 Instala Cloudflare Tunnel en Linux:
+📥 Instalación de Cloudflare Tunnel en Linux:
 
-1. Con apt (Debian/Ubuntu):
+1. Debian/Ubuntu:
    curl -L https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
    echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/linux focal main' | sudo tee /etc/apt/sources.list.d/cloudflare-main.list
    sudo apt-get update && sudo apt-get install cloudflared
 
-2. Una vez instalado, AlbertDesk lo detectará automáticamente
+2. Manual:
+   Descarga desde: https://github.com/cloudflare/cloudflared/releases
+   Busca: cloudflared-linux-amd64
+
+Una vez instalado, AlbertDesk lo detectará automáticamente.
 """
+    
+    def install_cloudflared(self) -> bool:
+        """
+        Install cloudflared automatically (Windows only).
+        For other OS, shows manual instructions.
+        
+        Returns:
+            True if installation successful or already installed
+        """
+        # Check if already installed
+        if self.is_cloudflare_installed():
+            if self.on_output:
+                self.on_output("✅ Cloudflared ya está instalado")
+            return True
+        
+        if sys.platform.startswith('win'):
+            return self._install_windows()
+        elif sys.platform.startswith('darwin'):
+            if self.on_output:
+                self.on_output("⚠️ En macOS, usa: brew install cloudflared")
+                self.on_output(self.get_installation_instructions())
+            return False
+        else:  # Linux
+            if self.on_output:
+                self.on_output("⚠️ En Linux, consulta las instrucciones:")
+                self.on_output(self.get_installation_instructions())
+            return False
+    
+    def _install_windows(self) -> bool:
+        """Install cloudflared on Windows automatically."""
+        try:
+            if self.on_output:
+                self.on_output("="*60)
+                self.on_output("🚀 INSTALACIÓN AUTOMÁTICA DE CLOUDFLARE TUNNEL")
+                self.on_output("="*60)
+                self.on_output("")
+                self.on_output("📥 Descargando cloudflared desde GitHub...")
+            
+            # URL de la última versión de cloudflared para Windows
+            url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
+            
+            # Crear carpeta temporal
+            temp_dir = os.path.join(os.environ.get('TEMP', '.'), 'albertdesk_install')
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            # Descargar archivo
+            exe_path = os.path.join(temp_dir, "cloudflared.exe")
+            
+            if self.on_output:
+                self.on_output(f"📂 Descargando a: {exe_path}")
+            
+            # Descargar con barra de progreso
+            def download_progress(block_num, block_size, total_size):
+                if total_size > 0:
+                    percent = min(100, (block_num * block_size * 100) // total_size)
+                    if self.on_output and block_num % 50 == 0:  # Actualizar cada ~50 bloques
+                        self.on_output(f"⏬ Progreso: {percent}%")
+            
+            urllib.request.urlretrieve(url, exe_path, download_progress)
+            
+            if self.on_output:
+                self.on_output("✅ Descarga completada")
+                self.on_output("")
+                self.on_output("📦 Instalando cloudflared...")
+            
+            # Determinar la carpeta de instalación
+            # Intentar instalar en C:\Program Files\cloudflared o en AppData del usuario
+            program_files = os.environ.get('ProgramFiles', 'C:\\Program Files')
+            install_dir = os.path.join(program_files, 'cloudflared')
+            
+            # Si no tenemos permisos para Program Files, usar AppData
+            try:
+                os.makedirs(install_dir, exist_ok=True)
+            except PermissionError:
+                appdata = os.environ.get('LOCALAPPDATA', os.path.expanduser('~\\AppData\\Local'))
+                install_dir = os.path.join(appdata, 'Programs', 'cloudflared')
+                os.makedirs(install_dir, exist_ok=True)
+                if self.on_output:
+                    self.on_output(f"ℹ️ Instalando en perfil de usuario (sin permisos de admin)")
+            
+            # Copiar ejecutable
+            final_path = os.path.join(install_dir, "cloudflared.exe")
+            shutil.copy2(exe_path, final_path)
+            
+            if self.on_output:
+                self.on_output(f"✅ Cloudflared instalado en: {install_dir}")
+                self.on_output("")
+                self.on_output("🔧 Agregando al PATH del sistema...")
+            
+            # Agregar al PATH del usuario (no requiere admin)
+            try:
+                import winreg
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment', 0, winreg.KEY_ALL_ACCESS)
+                try:
+                    current_path, _ = winreg.QueryValueEx(key, 'Path')
+                except FileNotFoundError:
+                    current_path = ''
+                
+                if install_dir not in current_path:
+                    new_path = f"{current_path};{install_dir}" if current_path else install_dir
+                    winreg.SetValueEx(key, 'Path', 0, winreg.REG_EXPAND_SZ, new_path)
+                    if self.on_output:
+                        self.on_output(f"✅ PATH actualizado")
+                else:
+                    if self.on_output:
+                        self.on_output(f"ℹ️ La carpeta ya está en el PATH")
+                
+                winreg.CloseKey(key)
+                
+                # Notificar al sistema del cambio en las variables de entorno
+                import ctypes
+                HWND_BROADCAST = 0xFFFF
+                WM_SETTINGCHANGE = 0x001A
+                ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, 'Environment')
+                
+            except Exception as e:
+                if self.on_output:
+                    self.on_output(f"⚠️ No se pudo actualizar PATH automáticamente: {e}")
+                    self.on_output(f"💡 Agrega manualmente al PATH: {install_dir}")
+            
+            # Limpiar archivos temporales
+            try:
+                os.remove(exe_path)
+            except:
+                pass
+            
+            if self.on_output:
+                self.on_output("")
+                self.on_output("="*60)
+                self.on_output("✅ ¡INSTALACIÓN COMPLETADA!")
+                self.on_output("="*60)
+                self.on_output("")
+                self.on_output("ℹ️ NOTA IMPORTANTE:")
+                self.on_output("   Cierra y vuelve a abrir AlbertDesk para que los cambios")
+                self.on_output("   en el PATH surtan efecto.")
+                self.on_output("")
+                self.on_output("   Después podrás usar el botón 'Iniciar Tunnel'")
+                self.on_output("="*60)
+            
+            logger.info(f"Cloudflared installed successfully at {install_dir}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to install cloudflared: {e}")
+            if self.on_output:
+                self.on_output("")
+                self.on_output(f"❌ Error durante la instalación: {e}")
+                self.on_output("")
+                self.on_output("💡 Puedes instalar manualmente:")
+                self.on_output(self.get_installation_instructions())
+            return False
     
     def start_tunnel(self, local_port: int) -> bool:
         """

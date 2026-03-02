@@ -5,6 +5,38 @@ All notable changes to AlbertDesk will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-03-02
+
+### Added
+- **Instalación Automática de Cloudflare Tunnel** 🚀 - Windows ahora puede instalar cloudflared automáticamente
+- Descarga automática desde GitHub releases oficial de Cloudflare
+- Instalación en carpeta de usuario (no requiere permisos de administrador)
+- Actualización automática del PATH del sistema
+- Barra de progreso durante la descarga
+- Notificación del sistema cuando se actualiza el PATH
+
+### Changed
+- Botón "Instalar Cloudflare Tunnel" ahora ejecuta la instalación en lugar de solo mostrar instrucciones
+- Mejoradas las instrucciones de instalación para todos los sistemas operativos
+- El proceso de instalación se ejecuta en un hilo separado para no bloquear la UI
+- Mejor feedback visual durante el proceso de instalación
+
+### Technical
+- Agregado método `install_cloudflared()` en CloudflareTunnelManager
+- Agregado método `_install_windows()` para instalación automática en Windows
+- Uso de urllib.request para descarga de archivos
+- Uso de winreg para modificar PATH del usuario
+- Uso de ctypes para notificar cambios en variables de entorno
+- Thread-safe UI updates durante instalación
+
+### User Experience
+- Los usuarios de Windows ahora pueden instalar cloudflared con un solo clic
+- No es necesario buscar y descargar manualmente el ejecutable
+- No se requieren conocimientos técnicos para la instalación
+- El terminal muestra el progreso en tiempo real
+
+---
+
 ## [1.1.0] - 2026-03-02
 
 ### Added
