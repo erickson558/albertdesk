@@ -9,7 +9,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="albertdesk",
-    version="1.2.1",
+    version="1.2.2",
     author="Albert",
     author_email="albert@albertdesk.dev",
     description="Professional remote desktop control software with LAN and internet support",
