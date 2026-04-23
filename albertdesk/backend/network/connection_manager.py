@@ -13,6 +13,9 @@ import uuid
 from io import BytesIO
 from typing import Dict, Optional, Any
 
+# Tiempo de espera para recibir eventos del cliente (evita CPU idle pero no cierra la conexión)
+EVENTS_RECV_TIMEOUT = 30
+
 from PIL import Image
 import mss
 from PyQt5.QtCore import QObject, pyqtSignal
@@ -186,40 +189,49 @@ class ConnectionManager(QObject):
     def receive_remote_events_server(self, conn: socket.socket) -> None:
         """
         Receive and process remote events from client.
-        
+
         Args:
             conn: Client socket connection
         """
+        # Timeout generoso para no bloquear indefinidamente pero tampoco
+        # cerrar la sesión cuando el usuario no mueve el ratón por un momento.
+        conn.settimeout(EVENTS_RECV_TIMEOUT)
         try:
             while self.running and self.is_connected:
-                header = conn.recv(4)
-                if not header:
-                    break
-                
-                msg_size = unpack_message_size(header)
-                if not msg_size:
-                    continue
-                
-                # Receive complete message
-                payload = b""
-                while len(payload) < msg_size and self.running:
-                    chunk = conn.recv(min(BUFFER_SIZE, msg_size - len(payload)))
-                    if not chunk:
-                        break
-                    payload += chunk
-                
-                if not payload:
-                    break
-                
-                # Process message
                 try:
-                    msg = pickle.loads(payload)
-                    if isinstance(msg, dict):
-                        self._process_message(msg)
-                except Exception as e:
-                    logger.debug(f"Error processing message: {e}")
+                    header = conn.recv(4)
+                    if not header:
+                        break
+
+                    msg_size = unpack_message_size(header)
+                    if not msg_size:
+                        continue
+
+                    # Receive complete message
+                    payload = b""
+                    while len(payload) < msg_size and self.running:
+                        chunk = conn.recv(min(BUFFER_SIZE, msg_size - len(payload)))
+                        if not chunk:
+                            break
+                        payload += chunk
+
+                    if not payload:
+                        break
+
+                    # Process message
+                    try:
+                        msg = pickle.loads(payload)
+                        if isinstance(msg, dict):
+                            self._process_message(msg)
+                    except Exception as e:
+                        logger.debug(f"Error processing message: {e}")
+                        continue
+
+                except socket.timeout:
+                    # Sin eventos del cliente: normal cuando el usuario no interactúa.
+                    # Se mantiene el bucle activo.
                     continue
-        
+
         except Exception as e:
             logger.error(f"Event receiving error: {e}")
     
@@ -392,10 +404,11 @@ class ConnectionManager(QObject):
                     
                     if response != b"auth_ok":
                         logger.warning(f"Authentication failed: {response}")
-                        self.connection_status.emit(f"❌ Autenticación fallida")
+                        self.connection_status.emit("❌ Autenticación fallida")
                         self.auth_required.emit(target_id if target_id else ip)
-                        time.sleep(1)
-                        continue
+                        # No reintentamos con la misma contraseña incorrecta.
+                        # La señal auth_required solicitará una nueva contraseña al usuario.
+                        break
                     
                     logger.info("Authentication successful")
                     self.connection_status.emit("🔐 Autenticación exitosa")

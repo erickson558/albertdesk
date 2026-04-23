@@ -1,6 +1,6 @@
 """
 Build script for AlbertDesk PyInstaller compilation.
-Creates a standalone executable with integrated icon.
+Creates a standalone executable with integrated icon in the project root folder.
 
 Usage:
     python build.py
@@ -12,10 +12,14 @@ import shutil
 import subprocess
 from pathlib import Path
 
-# Configuration
+# Forzar UTF-8 en la salida para que los emojis funcionen en Windows
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+# Configuración del build
 PROJECT_NAME = "AlbertDesk"
 ICON_FILE = "Albertdesk.ico"
-OUTPUT_DIR = "."  # Generate exe in current folder
+OUTPUT_DIR = "."   # El .exe se genera en la misma carpeta que los .py
 BUILD_DIR = "build"
 SPEC_FILE = f"{PROJECT_NAME}.spec"
 
@@ -62,6 +66,7 @@ def build_executable():
         "--name", PROJECT_NAME,
         "--onefile",
         "--windowed",
+        # Incluye el paquete completo (backend, frontend, i18n)
         "--add-data", f"albertdesk{os.pathsep}albertdesk",
         icon_arg,
         "--distpath", OUTPUT_DIR,
@@ -81,10 +86,11 @@ def build_executable():
 def create_launch_script():
     """Create a batch file for easy launching on Windows."""
     if sys.platform.startswith('win'):
+        # El exe queda en la carpeta raíz (OUTPUT_DIR="."), no en dist/
         batch_content = f"""@echo off
 cd /d "%~dp0"
 echo Starting {PROJECT_NAME}...
-dist\\{PROJECT_NAME}.exe
+{PROJECT_NAME}.exe
 pause
 """
         with open(f"Launch-{PROJECT_NAME}.bat", 'w', encoding='utf-8') as f:
