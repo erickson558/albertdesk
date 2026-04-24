@@ -138,7 +138,7 @@ class AlbertDeskWindow(QMainWindow):
 
         # Fila contraseña
         pwd_layout = QHBoxLayout()
-        self.pwd_label = QLabel(f"🔐 {tr('btn_copy')[:2]}ontraseña: {self.config['password']}")
+        self.pwd_label = QLabel(f"🔐 {tr('label_password')}: {self.config['password']}")
         self.pwd_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.pwd_label.setFont(QFont("Courier", 10))
         self._copy_pwd_btn = QPushButton()
@@ -152,7 +152,7 @@ class AlbertDeskWindow(QMainWindow):
         pwd_layout.addWidget(self._generate_pwd_btn)
 
         # Puerto
-        self.port_label = QLabel(f"🚪 Puerto: {self.config['port']}")
+        self.port_label = QLabel(f"🚪 {tr('label_port')} {self.config['port']}")
         self.port_label.setFont(QFont("Courier", 10))
 
         # Botón actualizar
@@ -464,8 +464,9 @@ class AlbertDeskWindow(QMainWindow):
         self._copy_pwd_btn.setText(tr("btn_copy"))
         self._generate_pwd_btn.setText(tr("btn_generate"))
         self._refresh_id_btn.setText(tr("btn_refresh"))
-        # Las etiquetas dinámicas (id_label, pwd_label, port_label) se actualizan
-        # con _update_local_info() cuando los datos cambian.
+        # Actualizar etiquetas dinámicas con el prefijo traducido al nuevo idioma
+        self.pwd_label.setText(f"🔐 {tr('label_password')}: {self.config['password']}")
+        self.port_label.setText(f"🚪 {tr('label_port')} {self.config['port']}")
 
         # ── Pestaña Conectar ─────────────────────────────────────────────────
         self._lbl_target.setText(tr("label_target"))
@@ -544,7 +545,7 @@ class AlbertDeskWindow(QMainWindow):
         self.connect_btn.setEnabled(False)
         self.disconnect_btn.setEnabled(True)
         self.remote_disconnect_btn.setEnabled(True)
-        self.connection_status_lbl.setText("🟢 Conectado" if get_language() == "es" else "🟢 Connected")
+        self.connection_status_lbl.setText(tr("status_connected"))
         self.tabs.setCurrentIndex(2)   # Ir a pestaña de pantalla remota
         self.remote_screen.setFocus()
 
@@ -787,7 +788,7 @@ class AlbertDeskWindow(QMainWindow):
     def _generate_new_password(self) -> None:
         """Genera una nueva contraseña aleatoria y la guarda."""
         self.config["password"] = generate_password()
-        self.pwd_label.setText(f"🔐 Contraseña: {self.config['password']}")
+        self.pwd_label.setText(f"🔐 {tr('label_password')}: {self.config['password']}")
         self.config.save()
         self.status_bar.showMessage(tr("msg_new_password"), 3000)
 
@@ -797,7 +798,7 @@ class AlbertDeskWindow(QMainWindow):
             port = int(self.port_input.text())
             if port != self.config["port"]:
                 self.config["port"] = port
-                self.port_label.setText(f"🚪 Puerto: {port}")
+                self.port_label.setText(f"🚪 {tr('label_port')} {port}")
                 self.config.save()
                 self.status_bar.showMessage(tr("msg_restart_port"), 5000)
         except ValueError:

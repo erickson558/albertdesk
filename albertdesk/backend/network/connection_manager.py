@@ -366,7 +366,7 @@ class ConnectionManager(QObject):
     def connect_to_host(self, ip: str, port: int, password: str, target_id: str = "") -> None:
         """
         Connect to remote host as a client.
-        
+
         Args:
             ip: Remote host IP address
             port: Remote host port
@@ -375,76 +375,84 @@ class ConnectionManager(QObject):
         """
         self.client_active = True
         attempts = 0
-        
+        # Bandera para saber si la sesión llegó a establecerse (post-auth exitosa).
+        # Evita reintentar automáticamente cuando el servidor cierra una sesión activa.
+        _session_established = False
+
         while attempts < MAX_CONNECTION_ATTEMPTS and self.client_active:
             attempts += 1
             try:
                 self.connection_status.emit(f"🔗 Intentando conexión a {ip} (Intento {attempts})...")
                 logger.info(f"Attempting connection to {ip}:{port}")
-                
+
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.settimeout(CONNECTION_TIMEOUT)
                     s.connect((ip, port))
-                    
-                    # Send password
+
+                    # Enviar contraseña al servidor
                     password_data = password.encode()
                     s.sendall(pack_message(password_data))
-                    
-                    # Receive authentication response
+
+                    # Recibir respuesta de autenticación
                     header = s.recv(4)
                     if not header:
                         self.connection_status.emit("❌ Sin respuesta de autenticación")
                         break
-                    
+
                     resp_size = unpack_message_size(header)
                     if not resp_size:
                         break
-                    
+
                     response = s.recv(resp_size)
-                    
+
                     if response != b"auth_ok":
                         logger.warning(f"Authentication failed: {response}")
                         self.connection_status.emit("❌ Autenticación fallida")
                         self.auth_required.emit(target_id if target_id else ip)
-                        # No reintentamos con la misma contraseña incorrecta.
-                        # La señal auth_required solicitará una nueva contraseña al usuario.
+                        # No reintentar con la misma contraseña incorrecta;
+                        # auth_required pedirá al usuario una nueva contraseña.
                         break
-                    
+
                     logger.info("Authentication successful")
                     self.connection_status.emit("🔐 Autenticación exitosa")
                     self.is_connected = True
                     self.socket = s
+                    _session_established = True
                     self.connection_established.emit(s)
-                    
-                    # Receive frames from server
+
+                    # Bucle de recepción de frames
                     while self.client_active and self.is_connected:
                         try:
                             header = s.recv(4)
                             if not header:
+                                # El servidor cerró la conexión limpiamente
+                                logger.info("Server closed connection")
+                                self.is_connected = False
                                 break
-                            
+
                             size = unpack_message_size(header)
                             if not size:
                                 continue
-                            
-                            # Receive complete frame
+
+                            # Recibir mensaje completo
                             data = b""
                             while len(data) < size and self.client_active:
                                 packet = s.recv(min(BUFFER_SIZE, size - len(data)))
                                 if not packet:
                                     break
                                 data += packet
-                            
+
                             if not data:
+                                self.is_connected = False
                                 break
-                            
-                            # Try to decompress as frame first
+
+                            # Intentar descomprimir como frame JPEG primero
                             frame_data = decompress_data(data)
                             if frame_data:
                                 self.frame_received.emit(frame_data)
                                 continue
-                            
-                            # Otherwise try as pickle message
+
+                            # Si no es frame comprimido, tratar como mensaje pickle
                             try:
                                 decoded = pickle.loads(data)
                                 if isinstance(decoded, dict):
@@ -455,24 +463,53 @@ class ConnectionManager(QObject):
                                         self._handle_file_message(decoded)
                             except Exception:
                                 pass
-                        
+
                         except socket.timeout:
+                            # Sin datos del servidor: normal, continuar esperando
                             continue
                         except Exception as e:
                             logger.error(f"Error receiving data: {e}")
+                            self.is_connected = False
                             break
-            
+
+                    # Si la sesión ya fue establecida (el usuario no llamó disconnect),
+                    # no reintentar: la conexión se perdió del lado del servidor.
+                    if _session_established:
+                        break
+
             except Exception as e:
                 logger.error(f"Connection error: {e}")
                 self.connection_status.emit(f"❌ Error de conexión: {str(e)}")
-                if attempts < MAX_CONNECTION_ATTEMPTS:
+                if attempts < MAX_CONNECTION_ATTEMPTS and not _session_established:
                     time.sleep(1)
-        
-        if not self.is_connected:
-            logger.warning("Failed to establish connection")
-            self.connection_status.emit("🔴 No se pudo establecer conexión")
+
+        # Emitir connection_lost sólo si:
+        # - La conexión se perdió inesperadamente (servidor caído, error de red)
+        # - O nunca se logró conectar
+        # NO emitir si fue el usuario quien llamó disconnect() (ya emitió la señal)
+        if not self.is_connected and self.client_active:
+            logger.warning("Connection lost or failed to establish")
+            if _session_established:
+                self.connection_status.emit("🔴 Conexión perdida con el servidor")
+            else:
+                self.connection_status.emit("🔴 No se pudo establecer conexión")
             self.connection_lost.emit()
     
+    def _cleanup_receiving_files(self) -> None:
+        """Cierra file handles abiertos de transferencias de archivos incompletas.
+
+        Llamar al desconectar para liberar recursos y evitar file handle leaks.
+        """
+        for file_id, state in list(self._receiving_files.items()):
+            try:
+                fp = state.get('fp')
+                if fp and not fp.closed:
+                    fp.close()
+                    logger.warning(f"Closed incomplete file transfer: {state.get('name', file_id)}")
+            except Exception as e:
+                logger.debug(f"Error closing file handle for {file_id}: {e}")
+        self._receiving_files.clear()
+
     def disconnect(self) -> None:
         """Disconnect from remote host."""
         self.client_active = False
@@ -488,10 +525,12 @@ class ConnectionManager(QObject):
             except Exception as e:
                 logger.debug(f"Error during disconnect: {e}")
         self.socket = None
+        # Cerrar file handles de transferencias incompletas
+        self._cleanup_receiving_files()
         self.connection_status.emit("🔴 Desconectado del host remoto")
         self.connection_lost.emit()
         logger.info("Disconnected from host")
-    
+
     def stop(self) -> None:
         """Stop server and disconnect."""
         self.client_active = False
@@ -502,6 +541,8 @@ class ConnectionManager(QObject):
                 self.socket.close()
             except Exception:
                 pass
+        # Cerrar file handles de transferencias incompletas
+        self._cleanup_receiving_files()
         logger.info("Connection manager stopped")
     
     def send_file(self, filepath: str) -> bool:

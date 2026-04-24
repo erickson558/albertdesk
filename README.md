@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
-![Version 1.2.0](https://img.shields.io/badge/version-1.2.0-brightgreen.svg)
+![Version 1.3.1](https://img.shields.io/badge/version-1.3.1-brightgreen.svg)
 [![GitHub release](https://img.shields.io/github/v/release/erickson558/albertdesk)](https://github.com/erickson558/albertdesk/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/erickson558/albertdesk)
 

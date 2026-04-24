@@ -63,12 +63,15 @@ TRANSLATIONS = {
         # Pestaña Red
         "group_network": "📡 Información de Red",
         "label_available_ips": "Direcciones IP disponibles:",
+        # Pestaña Mi ID - etiquetas dinámicas
+        "label_password": "Contraseña",
         # Donación
         "group_donate": "❤️ Apoyar el Proyecto",
         "donate_label": "Si AlbertDesk te es útil, ¡invítame una cerveza!",
         "btn_donate": "🍺 Cómprame una cerveza",
         "donate_tooltip": "¡Apoya el desarrollo de AlbertDesk con una donación en PayPal!",
         # Mensajes de estado
+        "status_connected": "🟢 Conectado",
         "msg_copied": "📋 Copiado: {}",
         "msg_new_password": "🔄 Nueva contraseña generada",
         "msg_settings_saved": "✅ Configuración guardada",
@@ -134,6 +137,8 @@ TRANSLATIONS = {
         "btn_copy": "📋 Copy",
         "btn_generate": "🔄 Generate",
         "btn_refresh": "🔄 Refresh",
+        # My ID tab - dynamic labels
+        "label_password": "Password",
         # Connect tab
         "label_target": "Target (IP or remote device ID):",
         "placeholder_target": "192.168.1.100 or device ID",
@@ -179,6 +184,7 @@ TRANSLATIONS = {
         "btn_donate": "🍺 Buy me a beer",
         "donate_tooltip": "Support AlbertDesk development with a PayPal donation!",
         # Status messages
+        "status_connected": "🟢 Connected",
         "msg_copied": "📋 Copied: {}",
         "msg_new_password": "🔄 New password generated",
         "msg_settings_saved": "✅ Settings saved",
