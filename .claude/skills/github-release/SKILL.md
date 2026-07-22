@@ -45,12 +45,16 @@ EOF
 ```
 
 ## 3. Tag y push
-Convención de este repo: tags con **V mayúscula** (`V1.3.0`, `V1.3.1`, ...),
-consistente con el formato pedido en `specs/constitution.md`.
+**El tag debe ser `vX.Y.Z` con "v" MINÚSCULA** — `.github/workflows/release.yml`
+dispara con `on.push.tags: 'v*.*.*'`, y GitHub Actions compara patrones de tag de
+forma case-sensitive. Un tag `V1.3.2` (mayúscula) se pushea sin error pero **no
+dispara nada y no avisa** — la única forma de notarlo es que no aparece ningún run
+nuevo en `gh run list`. Esto ya pasó una vez en este repo (ver
+`specs/1.3.2-stability-and-security/tasks.md`), no lo repitas.
 ```bash
-git tag Vx.y.z
+git tag vx.y.z
 git push origin main
-git push origin Vx.y.z
+git push origin vx.y.z
 ```
 El push del tag dispara `.github/workflows/release.yml` en GitHub Actions, que
 recompila el `.exe` en un runner limpio de Windows y crea el GitHub Release
@@ -58,10 +62,16 @@ automáticamente adjuntando `AlbertDesk.exe`, `README.md`, `CHANGELOG.md`, `LICE
 **No crees el release manualmente con `gh release create`** salvo que el workflow
 haya fallado — es redundante y puede producir dos releases para el mismo tag.
 
-## 4. Verificar que el release se disparó
+## 4. Verificar que el release se disparó (obligatorio, no asumir)
 ```bash
-gh run list --repo erickson558/albertdesk --limit 3
+gh run list --repo erickson558/albertdesk --workflow=release.yml --limit 3
 ```
+Si tu tag no aparece como el run más reciente en menos de ~30 segundos, algo no
+disparó el workflow (casing del tag, patrón del trigger cambiado, etc.) — investiga
+antes de dar el release por hecho. Si aparece pero termina en `failure`, usa
+`gh run view <id> --log-failed` MIENTRAS el run es reciente (los logs expiran a los
+~90 días, ver el mismo archivo de tasks.md para un caso real donde esto impidió
+diagnosticar fallos históricos).
 
 ## Reglas
 - Nunca hagas `push --force` a `main` sin confirmación explícita del usuario para

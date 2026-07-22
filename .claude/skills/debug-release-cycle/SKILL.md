@@ -54,7 +54,8 @@ Antes de dar por corregido:
 ## FASE 4 — Versionado
 - Determina el incremento: patch (fix), minor (mejora/feature compatible), major
   (cambio incompatible/rediseño). Por defecto es patch — justifica si no lo es.
-- Formato `Vx.y.z`, coherente en TODOS estos archivos a la vez:
+- Formato `x.y.z` (texto plano, sin prefijo de letra), coherente en TODOS estos
+  archivos a la vez:
   - `main.py` (`__version__`)
   - `albertdesk/__init__.py` (`__version__`)
   - `setup.py` (`version=`)
@@ -64,14 +65,18 @@ Antes de dar por corregido:
 ## FASE 5 — Commit
 - Mensaje estilo conventional commit, en la línea de lo ya usado en este repo
   (`git log --oneline`): `fix: ...`, `feat: ...`, `security: ...`, terminando con
-  `(Vx.y.z)`. Ejemplo real del historial:
+  `(Vx.y.z)` (mayúscula, sólo cosmético en el texto del commit — no confundir con
+  el tag de git, ver FASE 6). Ejemplo real del historial:
   `fix: resolve connection_lost not emitted on server drop, ... (V1.3.1)`.
 - Un solo commit por ciclo salvo que el usuario pida separarlo.
 
 ## FASE 6 — Push y release
 - Usa la skill [[github-release]] para el push/tag — nunca improvises comandos de
   git/gh distintos a los ahí documentados, esa skill fija la cuenta correcta
-  (`erickson558`) y el repo (`erickson558/albertdesk`).
+  (`erickson558`), el repo (`erickson558/albertdesk`) **y el casing correcto del
+  tag** (`vX.Y.Z` minúscula — el trigger de GitHub Actions es case-sensitive y un
+  tag en mayúscula se pushea sin error pero no dispara el release; verifica
+  siempre con `gh run list` después de pushear el tag, nunca asumas que corrió).
 - Si el cambio incluye recompilar el `.exe`, hazlo con `python build.py` ANTES del
   commit (o justo después, pero antes del push) para que el build local quede
   consistente con el código commiteado — el `.exe` en sí no se commitea

@@ -13,16 +13,24 @@ Este documento define las reglas no negociables del proyecto. Todo cambio no tri
   del `.exe` en ambos extremos), no hay compatibilidad hacia atrás entre versiones
   de protocolo distintas.
 
-## 2. Versionado semántico (SemVer) — formato `Vx.y.z`
+## 2. Versionado semántico (SemVer) — formato `x.y.z`
 - **Major (X)**: cambios incompatibles o rediseño de arquitectura/protocolo.
 - **Minor (Y)**: nuevas funcionalidades compatibles hacia atrás.
 - **Patch (Z)**: bug fixes, hardening de seguridad, mejoras internas sin nueva feature.
 - La versión debe coincidir SIEMPRE en: `main.py` (`__version__`), `albertdesk/__init__.py`,
-  `setup.py`, badge de `README.md`, `CHANGELOG.md` y el tag de git (`git tag Vx.y.z`,
-  con V mayúscula — convención ya establecida desde V1.3.0).
-- Cada tag `vX.Y.Z`/`VX.Y.Z` pusheado a `origin` dispara `.github/workflows/release.yml`,
-  que recompila el `.exe` en CI y publica un GitHub Release. No pushear un tag salvo que
-  esa versión esté realmente lista para publicarse.
+  `setup.py`, badge de `README.md` y `CHANGELOG.md` — todos como texto plano `x.y.z`,
+  SIN prefijo de letra (p. ej. `1.3.2`, no `V1.3.2`).
+- El **tag de git es distinto y debe ser `vX.Y.Z` con "v" MINÚSCULA** —
+  `.github/workflows/release.yml` sólo dispara con `on.push.tags: 'v*.*.*'`, y los
+  patrones de tag de GitHub Actions son case-sensitive. Un tag `V1.3.2` (mayúscula)
+  NO dispara el release y no lo avisa — falla en silencio (nunca aparece un run en
+  `gh run list`). Verificar esto es responsabilidad de [[github-release]], no
+  asumirlo. (Los tags `V1.3.0`/`V1.3.1` que quedaron localmente de un ciclo anterior
+  usaban mayúscula por error y nunca se hubieran disparado tampoco si se hubiesen
+  pusheado — ver nota en `specs/1.3.2-stability-and-security/tasks.md`.)
+- Cada tag `vX.Y.Z` pusheado a `origin` dispara `.github/workflows/release.yml`,
+  que recompila el `.exe` en CI y publica un GitHub Release. No pushear un tag salvo
+  que esa versión esté realmente lista para publicarse.
 
 ## 3. Proceso obligatorio para bugs/hardening: Análisis → Fix → Validación → Versión → Commit → Push
 Ver [[debug-release-cycle]] skill — encapsula las 6 fases (análisis de causa raíz,

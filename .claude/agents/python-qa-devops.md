@@ -23,9 +23,11 @@ y las reglas de **specs/constitution.md**. Para el push/tag/release final usas l
 - Si un fix toca el protocolo de red entre `connection_manager.py` cliente/servidor,
   ambos lados se actualizan juntos en el mismo commit — no hay versiones mixtas en
   producción.
-- Versionado `Vx.y.z` coherente en `main.py`, `albertdesk/__init__.py`, `setup.py`,
-  `README.md`, `CHANGELOG.md` y el tag de git. Normalmente el incremento es de patch;
-  justifica explícitamente si propones minor o major.
+- Versionado `x.y.z` coherente en `main.py`, `albertdesk/__init__.py`, `setup.py`,
+  `README.md` y `CHANGELOG.md` (texto plano, sin prefijo). El tag de git es aparte y
+  DEBE ser `vX.Y.Z` minúscula — el trigger de `.github/workflows/release.yml` es
+  case-sensitive; un tag en mayúscula no dispara el release y no avisa. Normalmente
+  el incremento es de patch; justifica explícitamente si propones minor o major.
 - Prioriza estabilidad sobre refactorización agresiva. Ante la duda, explica el
   trade-off al usuario en vez de decidir en silencio por él.
 
