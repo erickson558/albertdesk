@@ -91,11 +91,25 @@ class WinInput:
         """Initialize Windows input controller."""
         try:
             self.user32 = ctypes.windll.user32
-            # Set DPI awareness for proper coordinate handling
+            # Per-Monitor v2 (Windows 10 1703+) reporta coordenadas correctas en
+            # setups multi-monitor con distinto factor de escala; sin esto,
+            # SetCursorPos/SendInput calculan la posición asumiendo el DPI del
+            # monitor primario y el mouse remoto queda desalineado en el resto.
+            # SetProcessDPIAware (system-DPI-aware) queda como fallback para
+            # builds de Windows que no soporten el contexto per-monitor v2.
             try:
-                self.user32.SetProcessDPIAware()
+                DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = ctypes.c_void_p(-4)
+                ok = self.user32.SetProcessDpiAwarenessContext(
+                    DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+                )
+                if not ok:
+                    raise OSError("SetProcessDpiAwarenessContext returned False")
             except Exception as e:
-                logger.debug(f"Could not set DPI aware: {e}")
+                logger.debug(f"Per-Monitor v2 DPI awareness unavailable, falling back: {e}")
+                try:
+                    self.user32.SetProcessDPIAware()
+                except Exception as e2:
+                    logger.debug(f"Could not set DPI aware: {e2}")
         except Exception as e:
             logger.error(f"Failed to initialize WinInput: {e}")
             raise

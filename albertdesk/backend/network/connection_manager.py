@@ -3,6 +3,7 @@ Connection management for AlbertDesk.
 Handles server and client connections with file transfer support.
 """
 
+import hmac
 import os
 import pickle
 import socket
@@ -21,7 +22,14 @@ import mss
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from ..core.logger import get_logger
-from ..core.utils import compress_data, decompress_data, pack_message, unpack_message_size
+from ..core.utils import (
+    compress_data,
+    decompress_data,
+    pack_message,
+    recv_exact,
+    safe_pickle_loads,
+    unpack_message_size,
+)
 from .input_handler import WinInput
 
 logger = get_logger(__name__)
@@ -33,6 +41,11 @@ MAX_CONNECTION_ATTEMPTS = 3
 CONNECTION_TIMEOUT = 5
 RECEIVED_DIR = "received_files"
 FILE_CHUNK_SIZE = 262144  # 256 KiB
+# Tamaño máximo del handshake de autenticación (password/respuesta). Se aplica
+# ANTES de verificar la contraseña, así que debe ser pequeño y fijo: evita que
+# un cliente no autenticado anuncie un tamaño enorme en el header de 4 bytes
+# para forzar una asignación de memoria desproporcionada (DoS).
+MAX_AUTH_MESSAGE_SIZE = 4096
 
 
 class ConnectionManager(QObject):
@@ -116,26 +129,46 @@ class ConnectionManager(QObject):
         Args:
             conn: Client socket connection
         """
+        # Rechazar conexiones entrantes mientras ya hay una sesión activa: sin
+        # esta guarda, un reintento de reconexión casi simultáneo a una nueva
+        # conexión corrompía el estado compartido (socket, screens, current_screen,
+        # _receiving_files) al ser escrito desde dos hilos de sesión distintos.
+        if self.is_connected:
+            logger.info("Rejecting new connection: a session is already active")
+            try:
+                conn.close()
+            except Exception:
+                pass
+            return
+
         try:
             conn.settimeout(CONNECTION_TIMEOUT)
-            
+
             # Receive and verify password
             header = conn.recv(4)
             if not header:
                 conn.close()
                 return
-            
+
             auth_size = unpack_message_size(header)
-            if not auth_size:
+            # auth_size llega de un cliente aún no autenticado: acotarlo evita
+            # que anuncie un tamaño enorme y fuerce una lectura desproporcionada.
+            if not auth_size or auth_size > MAX_AUTH_MESSAGE_SIZE:
                 conn.close()
                 return
-            
-            auth_data = conn.recv(auth_size).decode().strip()
-            
-            if auth_data != self.config.get("password", ""):
+
+            auth_bytes = recv_exact(conn, auth_size)
+            if auth_bytes is None:
+                conn.close()
+                return
+            auth_data = auth_bytes.decode(errors="replace").strip()
+
+            # Comparación en tiempo constante: evita filtrar por timing cuántos
+            # caracteres iniciales de la contraseña coinciden.
+            if not hmac.compare_digest(auth_data, self.config.get("password", "")):
                 error_msg = b"auth_failed"
                 conn.send(pack_message(error_msg))
-                logger.warning(f"Authentication failed for {auth_data}")
+                logger.warning("Authentication failed")
                 self.connection_status.emit("❌ Autenticación fallida")
                 conn.close()
                 return
@@ -220,7 +253,7 @@ class ConnectionManager(QObject):
 
                     # Process message
                     try:
-                        msg = pickle.loads(payload)
+                        msg = safe_pickle_loads(payload)
                         if isinstance(msg, dict):
                             self._process_message(msg)
                     except Exception as e:
@@ -400,10 +433,16 @@ class ConnectionManager(QObject):
                         break
 
                     resp_size = unpack_message_size(header)
-                    if not resp_size:
+                    # El host remoto podría no ser de confianza (el usuario
+                    # tipeó una IP cualquiera): acotar el tamaño evita una
+                    # lectura desproporcionada antes de validar nada.
+                    if not resp_size or resp_size > MAX_AUTH_MESSAGE_SIZE:
                         break
 
-                    response = s.recv(resp_size)
+                    response = recv_exact(s, resp_size)
+                    if response is None:
+                        self.connection_status.emit("❌ Sin respuesta de autenticación")
+                        break
 
                     if response != b"auth_ok":
                         logger.warning(f"Authentication failed: {response}")
@@ -454,7 +493,7 @@ class ConnectionManager(QObject):
 
                             # Si no es frame comprimido, tratar como mensaje pickle
                             try:
-                                decoded = pickle.loads(data)
+                                decoded = safe_pickle_loads(data)
                                 if isinstance(decoded, dict):
                                     msg_type = decoded.get('type')
                                     if msg_type == 'screens':
@@ -612,7 +651,11 @@ class ConnectionManager(QObject):
         try:
             if msg_type == 'file_begin':
                 file_id = msg.get('file_id', '')
-                name = msg.get('name', f"file_{file_id}")
+                name = msg.get('name') or f"file_{file_id}"
+                # El nombre viene del peer remoto: os.path.basename() descarta
+                # cualquier separador de ruta ("..", "/", "C:\\...") para que
+                # nunca pueda escribirse fuera de RECEIVED_DIR (path traversal).
+                name = os.path.basename(name) or f"file_{file_id}"
                 size = int(msg.get('size', 0))
                 path = os.path.join(RECEIVED_DIR, name)
                 

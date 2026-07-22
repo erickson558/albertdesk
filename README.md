@@ -1,8 +1,8 @@
 # 🖥️ AlbertDesk - Professional Remote Desktop Control
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 ![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
-![Version 1.3.1](https://img.shields.io/badge/version-1.3.1-brightgreen.svg)
+![Version 1.3.2](https://img.shields.io/badge/version-1.3.2-brightgreen.svg)
 [![GitHub release](https://img.shields.io/github/v/release/erickson558/albertdesk)](https://github.com/erickson558/albertdesk/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/erickson558/albertdesk)
 
@@ -30,12 +30,14 @@ Una aplicación profesional de control remoto de escritorio similar a RustDesk y
 - **🌐 Internet (Cloudflare Tunnel)** - Conexión desde cualquier lugar con Cloudflare Tunnel gratuito
 - **📡 Sin Configuración de Router** - No necesitas abrir puertos ni configurar NAT
 
-### Interfaz de Usuario (Nueva en v1.1.0)
-- **Terminal CLI Embebida** 🆕 - Terminal integrada para instalación de Cloudflare desde la app
+### Interfaz de Usuario
+- **Terminal CLI Embebida** - Terminal integrada para instalación de Cloudflare desde la app
 - **Modern PyQt5 UI** - Interfaz limpia e intuitiva con pestañas
 - **Salida en Tiempo Real** - Visualización de logs de cloudflared en el terminal
 - **Tema Oscuro** - Fácil para la vista durante uso prolongado
 - **Indicadores de Estado** - Estado de conexión y red en tiempo real
+- **🌐 Multi-idioma (v1.3.0+)** - Español e Inglés, seleccionable desde la pestaña de Configuración (`albertdesk/i18n`)
+- **☕ Apoya el proyecto (v1.3.0+)** - Botón "Cómprame una cerveza" (PayPal) en la app
 
 ## 🚀 Inicio Rápido
 
@@ -169,9 +171,9 @@ albertdesk/
 │   ├── core/
 │   │   ├── config.py    # Configuration management
 │   │   ├── logger.py    # Logging system
-│   │   └── utils.py     # Helper functions
+│   │   └── utils.py     # Helper functions (compresión, framing, deserialización segura)
 │   └── network/
-│       ├── connection_manager.py     # P2P networking
+│       ├── connection_manager.py     # P2P networking (servidor/cliente, transferencia de archivos)
 │       ├── input_handler.py          # Input injection (Windows)
 │       └── cloudflare_tunnel.py      # Tunnel integration
 ├── frontend/             # User interface
@@ -180,17 +182,35 @@ albertdesk/
 │   └── widgets/
 │       ├── remote_desktop_widget.py   # Screen viewer
 │       └── fullscreen_window.py       # Fullscreen mode
+├── i18n/                 # Traducciones ES/EN (albertdesk.i18n.tr())
 ├── main.py              # Application entry point
 ├── build.py             # PyInstaller build script
 └── requirements.txt     # Python dependencies
 ```
 
+Ver [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para una explicación en detalle de
+qué hace cada módulo y cómo se comunican entre sí (hilos, señales Qt, protocolo de red).
+
+## 📦 Dependencias
+
+| Paquete | Versión mínima | Para qué se usa |
+|---|---|---|
+| [PyQt5](https://pypi.org/project/PyQt5/) | 5.15.0 | Interfaz gráfica (ventanas, widgets, señales/hilos) |
+| [Pillow](https://pypi.org/project/Pillow/) | 10.0.0 | Codificación de capturas de pantalla a JPEG |
+| [mss](https://pypi.org/project/mss/) | 9.0.0 | Captura de pantalla multi-monitor multiplataforma |
+
+Instalación de todas con `pip install -r requirements.txt`. Para compilar el `.exe`
+también se necesita `pyinstaller` (ver sección de compilación más abajo).
+
 ## 🔒 Security Notes
 
-- Passwords are hashed and transmitted securely
+- Comparación de contraseña en tiempo constante y deserialización de red restringida
+  (sin ejecución de código arbitrario vía payloads maliciosos)
 - Communication uses compression and error detection
 - Optional password saving (user preference)
 - No telemetry or data collection
+- **Limitación conocida:** la conexión P2P directa no usa TLS (texto plano sobre TCP).
+  Ver [SECURITY.md](SECURITY.md) para el detalle y el roadmap de cifrado end-to-end.
 
 ## 🛠️ Configuration
 
@@ -228,7 +248,14 @@ Por favor lee [CONTRIBUTING.md](CONTRIBUTING.md) para más detalles sobre nuestr
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## ☕ Apoya el Proyecto
+
+Si AlbertDesk te resulta útil, puedes invitarme una cerveza desde la propia app
+(pestaña "⚙️ Configuración" → "❤️ Apoyar el Proyecto") o directamente aquí:
+
+[![Donate](https://img.shields.io/badge/PayPal-Cómprame%20una%20cerveza-blue.svg?logo=paypal)](https://www.paypal.com/donate/?hosted_button_id=ZABFRXC2P3JQN)
 
 ## 🌟 Roadmap
 
@@ -277,7 +304,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - [CHANGELOG.md](CHANGELOG.md) - Historial de versiones
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Guía para contribuidores
-- [LICENSE](LICENSE) - Licencia MIT
+- [SECURITY.md](SECURITY.md) - Política de seguridad y limitaciones conocidas
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Qué hace cada módulo del proyecto
+- [LICENSE](LICENSE) - Licencia Apache 2.0
 
 ## ⭐ ¿Te Gusta el Proyecto?
 
@@ -292,7 +321,7 @@ Si AlbertDesk te resulta útil:
 
 <p align="center">
   <strong>Hecho con ❤️ por Albert</strong><br>
-  <sub>© 2026 AlbertDesk - Licencia MIT</sub>
+  <sub>© 2026 AlbertDesk - Licencia Apache 2.0</sub>
 </p>
 
 <p align="center">

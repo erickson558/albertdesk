@@ -4,7 +4,9 @@ Includes helpers for ID generation, password generation, network utilities, etc.
 """
 
 import hashlib
+import io
 import os
+import pickle
 import platform
 import random
 import socket
@@ -12,7 +14,7 @@ import string
 import struct
 import uuid
 import zlib
-from typing import List, Optional, Set
+from typing import Any, List, Optional, Set
 
 from .logger import get_logger
 
@@ -147,6 +149,65 @@ def unpack_message_size(header: bytes) -> Optional[int]:
     except Exception as e:
         logger.debug(f"Error unpacking message size: {e}")
     return None
+
+
+class _RestrictedUnpickler(pickle.Unpickler):
+    """Unpickler que sólo reconstruye datos primitivos (dict/list/str/int/float/
+    bytes/bool/None/tuple/set). Los mensajes del protocolo de AlbertDesk son
+    siempre de este tipo y nunca invocan find_class, así que bloquear cualquier
+    referencia a clase/función (opcodes GLOBAL/STACK_GLOBAL) neutraliza el RCE
+    clásico de pickle sin cambiar el formato de wire ni el comportamiento normal.
+    """
+
+    def find_class(self, module: str, name: str):
+        raise pickle.UnpicklingError(
+            f"Deserialización bloqueada: '{module}.{name}' no está permitido"
+        )
+
+
+def safe_pickle_loads(data: bytes) -> Any:
+    """Deserializa datos pickle recibidos de un peer de red de forma segura.
+
+    Usar SIEMPRE en vez de pickle.loads() para datos que llegan por el socket,
+    ya que un pickle.loads() directo sobre datos no confiables permite ejecución
+    de código arbitrario (ver specs/constitution.md § Seguridad).
+
+    Args:
+        data: Bytes pickle recibidos de la red.
+
+    Returns:
+        El objeto deserializado (dict/list/str/int/etc.).
+
+    Raises:
+        pickle.UnpicklingError: si los datos referencian una clase/función, o
+            están corruptos/no son pickle válido.
+    """
+    return _RestrictedUnpickler(io.BytesIO(data)).load()
+
+
+def recv_exact(sock: socket.socket, size: int, chunk_size: int = 131072) -> Optional[bytes]:
+    """Lee exactamente `size` bytes de un socket, acumulando sobre varios recv().
+
+    Un único recv() puede devolver menos bytes de los pedidos (streams TCP
+    fragmentados); usar esta función evita truncar mensajes cortos como el
+    handshake de autenticación.
+
+    Args:
+        sock: Socket conectado del que leer.
+        size: Cantidad exacta de bytes a leer.
+        chunk_size: Tamaño máximo de cada recv() individual.
+
+    Returns:
+        Los `size` bytes leídos, o None si la conexión se cerró antes de
+        completar la lectura.
+    """
+    data = b""
+    while len(data) < size:
+        chunk = sock.recv(min(chunk_size, size - len(data)))
+        if not chunk:
+            return None
+        data += chunk
+    return data
 
 
 def is_valid_ip(ip: str) -> bool:

@@ -334,12 +334,17 @@ Una vez instalado, AlbertDesk lo detectará automáticamente.
     
     def _capture_tunnel_url(self) -> None:
         """Capture the tunnel URL from cloudflared output."""
-        if not self.tunnel_process:
+        # Se captura la referencia en una variable local: stop_tunnel() corre en
+        # otro hilo y pone self.tunnel_process = None en su finally, lo que
+        # provocaría un AttributeError intermitente si este bucle siguiera
+        # leyendo self.tunnel_process directamente.
+        process = self.tunnel_process
+        if not process:
             return
-        
+
         try:
-            while self.running and self.tunnel_process.poll() is None:
-                line = self.tunnel_process.stderr.readline()
+            while self.running and process.poll() is None:
+                line = process.stderr.readline()
                 if not line:
                     continue
                 

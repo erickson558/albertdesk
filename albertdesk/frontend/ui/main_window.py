@@ -251,6 +251,10 @@ class AlbertDeskWindow(QMainWindow):
         self.remote_screen.request_fullscreen.connect(self._enter_remote_fullscreen)
 
         outer.addWidget(self.remote_screen, 1)
+        # Se guarda para poder reinsertar remote_screen aquí al salir de
+        # pantalla completa (RemoteFullscreenWindow lo reparenta a su propio
+        # layout mientras dura el modo fullscreen).
+        self._remote_tab_layout = outer
         return tab
 
     def _create_tunnel_tab(self) -> QWidget:
@@ -700,11 +704,20 @@ class AlbertDeskWindow(QMainWindow):
             return
 
         path, _ = QFileDialog.getOpenFileName(self, tr("btn_send_file"))
-        if path:
-            if self.conn_manager.send_file(path):
-                self.status_bar.showMessage(tr("msg_file_sent"), 3000)
-            else:
-                QMessageBox.warning(self, "Error", tr("err_cannot_send_file"))
+        if not path:
+            return
+
+        # send_file() hace socket.sendall() bloqueante por cada chunk de hasta
+        # 256 KiB; llamarlo directo en el hilo de la GUI congelaba la ventana
+        # durante toda la transferencia. El progreso y los errores ya llegan
+        # de forma thread-safe vía la señal connection_status (ver
+        # _setup_connections/_on_connection_status), así que no hace falta
+        # esperar el resultado aquí para informar al usuario.
+        threading.Thread(
+            target=self.conn_manager.send_file,
+            args=(path,),
+            daemon=True
+        ).start()
 
     def _open_received_folder(self) -> None:
         """Abre la carpeta de archivos recibidos en el explorador del sistema."""
@@ -741,6 +754,11 @@ class AlbertDeskWindow(QMainWindow):
     def _exit_full_screen(self, widget) -> None:
         """Sale del modo pantalla completa y vuelve a la pestaña de escritorio."""
         self._fs_win = None
+        # Sin esto, remote_screen quedaba huérfano dentro de la ventana de
+        # fullscreen ya cerrada y la pestaña "Pantalla remota" se veía en
+        # blanco permanentemente después del primer uso de fullscreen.
+        if widget is not None and getattr(self, "_remote_tab_layout", None) is not None:
+            self._remote_tab_layout.addWidget(widget, 1)
         self.tabs.setCurrentIndex(2)
 
     # ─────────────────────────────────────────────────────────────────────────

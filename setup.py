@@ -9,7 +9,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="albertdesk",
-    version="1.3.1",
+    version="1.3.2",
     author="Albert",
     author_email="albert@albertdesk.dev",
     description="Professional remote desktop control software with LAN and internet support",
@@ -33,7 +33,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
         "Operating System :: Microsoft :: Windows",
         "Operating System :: POSIX :: Linux",
